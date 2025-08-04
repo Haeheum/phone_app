@@ -4,9 +4,29 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 
-void main() => runApp(const MaterialApp(home: MyApp()));
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized(); // runApp 실행 이전이면 필요
+
+  await FlutterNaverMap().init(
+      clientId: 'g34s5gobge',
+      onAuthFailed: (ex) {
+        switch (ex) {
+          case NQuotaExceededException(:final message):
+            log(name: "디버그", "사용량 초과 : $message");
+            break;
+          case NUnauthorizedClientException() ||
+          NClientUnspecifiedException() ||
+          NAnotherAuthFailedException():
+            log(name: "디버그", "인증 실패 : $ex");
+            break;
+        }
+      });
+  runApp(const MaterialApp(home: MyApp()));
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -16,6 +36,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+
   // ===== 위치 관련 필드 ===================
   // 위치 권한 상태
   late LocationPermission _locationPermission;
@@ -28,23 +49,22 @@ class _MyAppState extends State<MyApp> {
   // 위치 정보 구독중
   bool _locationListening = false;
 
-  // // ===== 블루투스 관련 필드 ===============
-  // // Central 매니저
-  // final CentralManager _centralManager = CentralManager();
-  //
-  // // 목표 서비스 UUID
-  // final UUID targetServiceUUID = UUID.fromString(
-  //   "4fafc201-1fb5-459e-8fcc-c5c9c331914b",
-  // );
-  //
-  // // 찾은 장치 목록
-  // final List<DiscoveredEventArgs> _discoveries = [];
-  //
-  // // BLE 검색중
-  // bool _discovering = false;
-  //
-  // // BLE 연결됨
-  // bool _connected = false;
+  // ===== 블루투스 관련 필드 ===============
+
+  // 목표 서비스 UUID
+  final String targetServiceUUID = "asdf";
+
+  StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
+  StreamSubscription<bool>? _isScanningSubscription;
+  List<ScanResult> _scanResults = [];
+
+  // BLE 준비됨
+  bool _bleListening = false;
+
+  // BLE 연결됨
+  bool _bleConnected = false;
+
+  // ===== 필드 끝 ========================
 
   // 위치 권한 요청
   Future<void> _handleLocationPermission() async {
@@ -56,8 +76,6 @@ class _MyAppState extends State<MyApp> {
     if (!serviceEnabled) {
       return;
     }
-
-
 
     // 위치 권한 확인 및 요청
     _locationPermission = await Geolocator.requestPermission();
@@ -83,11 +101,17 @@ class _MyAppState extends State<MyApp> {
       log(name: "디버그", "위치 정보 수신 시작");
       // 위치 변경 감지 스트림 구독 시작
       _positionSubscription = Geolocator.getPositionStream().listen(
-            (Position? position) {
+        (Position? position) {
           setState(() {
             _locationListening = true;
             _currentPosition = position;
           });
+
+          /* todo
+          if(_bleConnected){
+            데이타 전송
+          }
+          */
         },
         onError: (e) {
           log(name: "디버그", "위치 정보 수신 실패");
@@ -99,7 +123,7 @@ class _MyAppState extends State<MyApp> {
       );
     } else {
       log(name: "디버그", "위치 정보 수신 중지");
-      _positionSubscription!.cancel(); // 구독 취소
+      _positionSubscription!.cancel();
       _positionSubscription = null;
       setState(() {
         _locationListening = false;
@@ -107,61 +131,162 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  // // BLE 권한 요청
-  // Future<void> _handleBLEPermission() async {
-  //   _centralManager.authorize();
-  // }
-  //
-  // // BLE 기기 검색 시작
-  // Future<void> _startDiscovery({List<UUID>? serviceUUIDs}) async {
-  //   if (_discovering) {
-  //     return;
-  //   }
-  //   _discoveries.clear();
-  //   await _centralManager.startDiscovery(serviceUUIDs: serviceUUIDs);
-  //   _discovering = true;
-  // }
-  //
-  // // BLE 기기 검색 중지
-  // Future<void> _stopDiscovery() async {
-  //   if (!_discovering) {
-  //     return;
-  //   }
-  //   await _centralManager.stopDiscovery();
-  //   _discovering = false;
-  // }
+  void _toggleBleListening() {
+    if (_scanResultsSubscription == null && _isScanningSubscription == null) {
+      log(name: "디버그", "블루투스 정보 수신 시작");
+      _scanResultsSubscription = FlutterBluePlus.scanResults.listen(
+        (results) {
+          if (mounted) {
+            setState(() => _scanResults = results);
+          }
+
+          /* todo
+            해당 디바이스 검색시 연결 후 mtu 설정후
+            _bleConnected = true;
+
+           */
+        },
+        onError: (e) {
+          log(name: "디버그", "BLE 스캔 결과 스트림 등록 실패: $e");
+          return;
+        },
+      );
+
+      _isScanningSubscription = FlutterBluePlus.isScanning.listen(
+        (state) {},
+        onError: (e) {
+          log(name: "디버그", "BLE 스캔 스트림 등록 실패: $e");
+          return;
+        },
+      );
+
+      setState(() {
+        _bleListening = true;
+      });
+    } else {
+      log(name: "디버그", "위치 정보 수신 중지");
+      _scanResultsSubscription!.cancel();
+      _isScanningSubscription!.cancel();
+      _scanResultsSubscription = null;
+      _isScanningSubscription = null;
+      setState(() {
+        _bleListening = false;
+      });
+    }
+  }
+
+  // BLE 기기 검색 시작
+  Future<void> _runBleScan() async {
+    if (FlutterBluePlus.isScanningNow) {
+      await FlutterBluePlus.stopScan();
+    }
+    _scanResults.clear();
+
+    try {
+      await FlutterBluePlus.startScan(
+        androidUsesFineLocation: true,
+        timeout: const Duration(seconds: 15),
+        withNames: [
+          // todo
+        ],
+        withServices: [
+          // Guid("180f"), // todo
+        ],
+      );
+    } catch (e) {
+      log(name: "디버그", "BLE 검색 실패: $e");
+      return;
+    }
+  }
+
+  //BLE 연결 시도
+  Future<void> _tryBleConnect() async {
+    BluetoothDevice device = _scanResults.firstWhere((scanResult) => scanResult.device.platformName == "").device;
+    await device.connect(
+      timeout: const Duration(seconds: 35),
+      mtu: 50,
+      autoConnect: true,
+    );
+    device.connectionState.listen((connectionState){
+      if(connectionState == BluetoothConnectionState.connected){
+        _bleConnected = true;
+
+      }else{
+        _bleConnected = false;
+      }
+    },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ===== 지도 관련 필드 ===================
+    const seoulCityHall = NLatLng(37.5666, 126.979);
+    final safeAreaPadding = MediaQuery.paddingOf(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("위치 정보 예제")),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      appBar: AppBar(),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            TextButton(
-              onPressed: _handleLocationPermission,
-              child: const Text("1. 권한 요청"),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _toggleLocationListening,
-              child: Text("2. 위치 정보 수신 ${_locationListening ? "중지" : "시작"}"),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "3. 위치 데이터: "
-                  "${_currentPosition != null ? "${_currentPosition!.latitude}, ${_currentPosition!.longitude}" : "없음"}",
-            ),
+            DrawerHeader(child: Text('순서대로 누르세요')),
           ],
         ),
       ),
+      body: NaverMap(
+        options: NaverMapViewOptions(
+          contentPadding: safeAreaPadding, // 화면의 SafeArea에 중요 지도 요소가 들어가지 않도록 설정하는 Padding. 필요한 경우에만 사용하세요.
+          initialCameraPosition: NCameraPosition(target: seoulCityHall, zoom: 14),
+        ),
+        onMapReady: (controller) {
+          final marker = NMarker(
+            id: "city_hall", // Required
+            position: seoulCityHall, // Required
+            caption: NOverlayCaption(text: "서울시청"), // Optional
+          );
+          controller.addOverlay(marker); // 지도에 마커를 추가
+          print("naver map is ready!");
+        },
+      ),
+      // body: SingleChildScrollView(
+      //   child: Center(
+      //     child: Column(
+      //       spacing: 16,
+      //       mainAxisAlignment: MainAxisAlignment.center,
+      //       children: [
+      //         TextButton(
+      //           onPressed: _handleLocationPermission,
+      //           child: const Text("1. 위치 권한 요청"),
+      //         ),
+      //         TextButton(
+      //           onPressed: _toggleLocationListening,
+      //           child: Text("2. 위치 정보 수신 ${_locationListening ? "중지" : "시작"}"),
+      //         ),
+      //         Text(
+      //           "3. 위치 데이터: "
+      //           "${_currentPosition != null ? "${_currentPosition!.latitude}, ${_currentPosition!.longitude}" : "없음"}",
+      //         ),
+      //         TextButton(
+      //           onPressed: _toggleBleListening,
+      //           child: Text("4. BLE 정보 수신 준비 ${_bleListening ? "중지" : "시작"}"),
+      //         ),
+      //         TextButton(onPressed: _runBleScan, child: Text("5. BLE 검색 시작")),
+      //         TextButton(onPressed: _tryBleConnect, child: Text("6. BLE 연결 상태: ${_bleConnected ? "연결됨" : "미연결"}"),),
+      //         Text("7. 검색 결과: ${_scanResults.toString()}"),
+      //       ],
+      //     ),
+      //   ),
+      // ),
     );
   }
 
   @override
   void dispose() {
-    _positionSubscription?.cancel(); // 위젯 종료 시 위치 정보 구독 취소
+    // 위젯 종료 시 구독 취소
+    _positionSubscription?.cancel();
+    _scanResultsSubscription?.cancel();
+    _isScanningSubscription?.cancel();
     super.dispose();
   }
 }

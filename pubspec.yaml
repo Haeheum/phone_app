@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   flutter_ble_peripheral: ^1.2.6
   flutter_blue_plus: ^1.35.5
+  flutter_naver_map: ^1.4.1+1
   geolocator: ^14.0.2
 
 dev_dependencies:
