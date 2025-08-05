@@ -24,7 +24,7 @@ class BluetoothManager {
   final ValueNotifier<bool> isBleConnected = ValueNotifier(false);
 
   // 스캔 결과
-  List<ScanResult> scanResults = [];
+  final ValueNotifier<List<ScanResult>> scanResults = ValueNotifier([]);
 
   // 블루투스 상태 및 스캔 상태 구독
   late final StreamSubscription<BluetoothAdapterState>
@@ -49,12 +49,10 @@ class BluetoothManager {
 
   // BLE 기기 검색 시작
   Future<void> startScan() async {
-    if (FlutterBluePlus.isScanningNow) {
-      await FlutterBluePlus.stopScan();
-    }
-    scanResults.clear();
+    await stopScan();
+    scanResults.value = [];
     final scanSubscription = FlutterBluePlus.scanResults.listen((results) {
-      scanResults = results;
+      scanResults.value = results.toList();
     });
     FlutterBluePlus.cancelWhenScanComplete(scanSubscription);
 
@@ -71,6 +69,13 @@ class BluetoothManager {
       );
     } catch (e) {
       log(name: "블루투스", "스캔 실패: $e");
+    }
+  }
+
+  // BLE 기기 검색 취소
+  Future<void> stopScan() async {
+    if (FlutterBluePlus.isScanningNow) {
+      await FlutterBluePlus.stopScan();
     }
   }
 

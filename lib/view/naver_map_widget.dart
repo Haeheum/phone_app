@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:phone_app/manager/bluetooth_manager.dart';
 
 class NaverMapWidget extends StatelessWidget {
   const NaverMapWidget({super.key});
@@ -38,15 +39,24 @@ class NaverMapWidget extends StatelessWidget {
         mapController!.addOverlay(marker);
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Latitude: ${nLatLng.latitude}\nLongitude: ${nLatLng.longitude}'),
-            action: SnackBarAction(label: "목적지 전송", onPressed: () {
-              // todo : 블루투스로
-            }),
-          ),
+          BluetoothManager.instance.isBleConnected.value
+              ? SnackBar(
+                  content: Text(
+                    'Latitude: ${nLatLng.latitude}\nLongitude: ${nLatLng.longitude}',
+                  ),
+                  action: SnackBarAction(
+                    label: "목적지 전송",
+                    onPressed: () {
+                      // todo : 블루투스로 목적지 좌표 전송
+                    },
+                  ),
+                )
+              : SnackBar(
+                  content: Text("블루투스 기기를 연결해 주세요"),
+                  showCloseIcon: true,
+                ),
         );
       },
     );
   }
-
 }

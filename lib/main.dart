@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:phone_app/view/naver_map_widget.dart';
 import 'package:phone_app/view/show_current_warning_widget.dart';
@@ -50,13 +51,70 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          Builder(
+            builder: (context) {
+              return IconButton(
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                  _bluetoothManager.startScan();
+                },
+                icon: const Icon(Icons.search),
+              );
+            },
+          ),
+        ],
+      ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [DrawerHeader(child: Text('순서대로 누르세요'))],
+        child: ValueListenableBuilder<List<ScanResult>>(
+          valueListenable: _bluetoothManager.scanResults,
+          builder: (_, results, __) {
+            return RefreshIndicator(
+              onRefresh: () => _bluetoothManager.startScan(),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  const DrawerHeader(
+                    decoration: BoxDecoration(color: Colors.blue),
+                    child: Center(
+                      child: Text(
+                        '블루투스 기기',
+                        style: TextStyle(color: Colors.white, fontSize: 24),
+                      ),
+                    ),
+                  ),
+                  if (results.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Text('검색된 기기가 없습니다.', style: TextStyle(color: Colors.grey)),
+                      ),
+                    ),
+                  ...results.map((result) {
+                    return ListTile(
+                      title: Text(result.device.platformName),
+                      subtitle: Text(result.device.remoteId.str),
+                      trailing: ElevatedButton(
+                        onPressed: () {
+                          _bluetoothManager.tryConnect(result.device);
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('연결'),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
         ),
       ),
+      onDrawerChanged: (isOpened) {
+        if (!isOpened) {
+          _bluetoothManager.stopScan();
+        }
+      },
       body: ValueListenableBuilder<bool>(
         valueListenable: _locationManager.hasLocationPermission,
         builder: (_, hasLocationPermission, __) {
