@@ -8,23 +8,24 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // runApp 실행 이전이면 필요
 
   await FlutterNaverMap().init(
-      clientId: 'g34s5gobge',
-      onAuthFailed: (ex) {
-        switch (ex) {
-          case NQuotaExceededException(:final message):
-            log(name: "디버그", "사용량 초과 : $message");
-            break;
-          case NUnauthorizedClientException() ||
-          NClientUnspecifiedException() ||
-          NAnotherAuthFailedException():
-            log(name: "디버그", "인증 실패 : $ex");
-            break;
-        }
-      });
+    clientId: 'g34s5gobge',
+    onAuthFailed: (ex) {
+      switch (ex) {
+        case NQuotaExceededException(:final message):
+          log(name: "디버그", "사용량 초과 : $message");
+          break;
+        case NUnauthorizedClientException() ||
+            NClientUnspecifiedException() ||
+            NAnotherAuthFailedException():
+          log(name: "디버그", "인증 실패 : $ex");
+          break;
+      }
+    },
+  );
   runApp(const MaterialApp(home: MyApp()));
 }
 
@@ -36,7 +37,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-
   // ===== 위치 관련 필드 ===================
   // 위치 권한 상태
   late LocationPermission _locationPermission;
@@ -83,16 +83,14 @@ class _MyAppState extends State<MyApp> {
 
     if (_locationPermission == LocationPermission.denied) {
       _locationPermission = await Geolocator.requestPermission();
-      if (_locationPermission == LocationPermission.denied) {
+      if (_locationPermission == LocationPermission.always ||
+          _locationPermission == LocationPermission.whileInUse) {
         log(name: "디버그", "위치 권한 거부");
         return;
       }
     }
-
-    if (_locationPermission == LocationPermission.deniedForever) {
-      log(name: "디버그", "위치 권한 영구 거부");
-      return;
-    }
+    log(name: "디버그", "위치 권한 영구 거부");
+    return;
   }
 
   // 위치 정보 수신 시작/중지 토글
@@ -201,27 +199,26 @@ class _MyAppState extends State<MyApp> {
 
   //BLE 연결 시도
   Future<void> _tryBleConnect() async {
-    BluetoothDevice device = _scanResults.firstWhere((scanResult) => scanResult.device.platformName == "").device;
+    BluetoothDevice device = _scanResults
+        .firstWhere((scanResult) => scanResult.device.platformName == "")
+        .device;
     await device.connect(
       timeout: const Duration(seconds: 35),
       mtu: 50,
       autoConnect: true,
     );
-    device.connectionState.listen((connectionState){
-      if(connectionState == BluetoothConnectionState.connected){
+    device.connectionState.listen((connectionState) {
+      if (connectionState == BluetoothConnectionState.connected) {
         _bleConnected = true;
-
-      }else{
+      } else {
         _bleConnected = false;
       }
-    },
-    );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     // ===== 지도 관련 필드 ===================
-    const seoulCityHall = NLatLng(37.5666, 126.979);
     final safeAreaPadding = MediaQuery.paddingOf(context);
 
     return Scaffold(
@@ -229,25 +226,33 @@ class _MyAppState extends State<MyApp> {
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(child: Text('순서대로 누르세요')),
-          ],
+          children: [DrawerHeader(child: Text('순서대로 누르세요'))],
         ),
       ),
       body: NaverMap(
         options: NaverMapViewOptions(
-          contentPadding: safeAreaPadding, // 화면의 SafeArea에 중요 지도 요소가 들어가지 않도록 설정하는 Padding. 필요한 경우에만 사용하세요.
-          initialCameraPosition: NCameraPosition(target: seoulCityHall, zoom: 14),
+          contentPadding: safeAreaPadding,
+          // 화면의 SafeArea에 중요 지도 요소가 들어가지 않도록 설정하는 Padding. 필요한 경우에만 사용하세요.
+          initialCameraPosition: NCameraPosition(
+            target: NLatLng(0, 0),
+            zoom: 14,
+          ),
+          locationButtonEnable: true,
         ),
-        onMapReady: (controller) {
-          final marker = NMarker(
-            id: "city_hall", // Required
-            position: seoulCityHall, // Required
-            caption: NOverlayCaption(text: "서울시청"), // Optional
-          );
-          controller.addOverlay(marker); // 지도에 마커를 추가
-          print("naver map is ready!");
-        },
+        onMapReady: (controller) async {
+            NLatLng? myLocation = await controller.myLocationTracker
+                .startLocationService();
+            controller.updateCamera(
+              NCameraUpdate.withParams(target: myLocation),
+            );
+            final marker = NMarker(
+              id: "my_location", // Required
+              position: myLocation ?? NLatLng(0, 0), // Required
+              caption: NOverlayCaption(text: "현재 위치"), // Optional
+            );
+            controller.addOverlay(marker);
+          },
+        onMapTapped: (nPoint, nLatLng) {},
       ),
       // body: SingleChildScrollView(
       //   child: Center(
@@ -288,5 +293,38 @@ class _MyAppState extends State<MyApp> {
     _scanResultsSubscription?.cancel();
     _isScanningSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _showAlertDialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+    VoidCallback? onPressed,
+  }) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(content)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('취소'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onPressed?.call();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }
