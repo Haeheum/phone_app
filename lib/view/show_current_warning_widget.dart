@@ -9,7 +9,7 @@ class ShowCurrentWarning extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: TextButton(onPressed: onPressed, child: Text(message)),
+      child: ElevatedButton(onPressed: onPressed, child: Text(message)),
     );
   }
 }

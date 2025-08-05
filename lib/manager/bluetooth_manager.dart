@@ -1,0 +1,99 @@
+import 'dart:async';
+import 'dart:developer';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+
+class BluetoothManager {
+  static final BluetoothManager instance = BluetoothManager._internal();
+
+  factory BluetoothManager() => instance;
+
+  BluetoothManager._internal();
+
+  // 목표 서비스 UUID
+  static const String targetServiceUUID = "asdf";
+
+  // 블루투스 On/Off 상태
+  final ValueNotifier<bool> isBleOn = ValueNotifier(false);
+
+  // 스캔 중 상태
+  final ValueNotifier<bool> isBleScanning = ValueNotifier(false);
+
+  // BLE 연결 상태
+  final ValueNotifier<bool> isBleConnected = ValueNotifier(false);
+
+  // 스캔 결과
+  List<ScanResult> scanResults = [];
+
+  // 블루투스 상태 및 스캔 상태 구독
+  late final StreamSubscription<BluetoothAdapterState>
+  _bluetoothStateSubscription;
+  late final StreamSubscription<bool> _isScanningSubscription;
+
+  // 초기화 (initState에서 호출)
+  void initialize() {
+    _bluetoothStateSubscription = FlutterBluePlus.adapterState.listen((state) {
+      isBleOn.value = state == BluetoothAdapterState.on;
+    });
+
+    _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
+      isBleScanning.value = state;
+    });
+  }
+
+  // 블루투스 켜기 (권한 요청)
+  Future<void> turnOn() async {
+    await FlutterBluePlus.turnOn();
+  }
+
+  // BLE 기기 검색 시작
+  Future<void> startScan() async {
+    if (FlutterBluePlus.isScanningNow) {
+      await FlutterBluePlus.stopScan();
+    }
+    scanResults.clear();
+    final scanSubscription = FlutterBluePlus.scanResults.listen((results) {
+      scanResults = results;
+    });
+    FlutterBluePlus.cancelWhenScanComplete(scanSubscription);
+
+    try {
+      await FlutterBluePlus.startScan(
+        androidUsesFineLocation: true,
+        timeout: const Duration(seconds: 15),
+        withNames: [
+          // todo
+        ],
+        withServices: [
+          // Guid("180f"), // todo
+        ],
+      );
+    } catch (e) {
+      log(name: "블루투스", "스캔 실패: $e");
+    }
+  }
+
+  // BLE 기기 연결 시도
+  Future<void> tryConnect(BluetoothDevice device) async {
+    try {
+      await device.connect(
+        timeout: const Duration(seconds: 35),
+        mtu: 70,
+        autoConnect: true,
+      );
+      device.connectionState.listen((connectionState) {
+        isBleConnected.value =
+            connectionState == BluetoothConnectionState.connected;
+      });
+    } catch (e) {
+      log(name: "블루투스", "연결 실패: $e");
+    }
+  }
+
+  // 리소스 해제
+  void dispose() {
+    _bluetoothStateSubscription.cancel();
+    _isScanningSubscription.cancel();
+  }
+}

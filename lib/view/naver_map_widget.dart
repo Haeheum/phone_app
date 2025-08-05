@@ -7,6 +7,7 @@ class NaverMapWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeAreaPadding = MediaQuery.paddingOf(context);
+    NaverMapController? mapController;
 
     return NaverMap(
       options: NaverMapViewOptions(
@@ -15,59 +16,37 @@ class NaverMapWidget extends StatelessWidget {
         locationButtonEnable: true,
       ),
       onMapReady: (controller) async {
+        mapController = controller;
+
         NLatLng? myLocation = await controller.myLocationTracker
             .startLocationService();
         controller.updateCamera(NCameraUpdate.withParams(target: myLocation));
+
         final marker = NMarker(
-          id: "my_location", // Required
+          id: "origin", // Required
           position: myLocation ?? NLatLng(0, 0), // Required
-          caption: NOverlayCaption(text: "현재 위치"), // Optional
+          caption: NOverlayCaption(text: "출발지"), // Optional
         );
         controller.addOverlay(marker);
       },
       onMapTapped: (nPoint, nLatLng) {
-        _showAlertDialog(
-          context: context,
-          title: "목적지 설정",
-          content: "(${nLatLng.latitude}, ${nLatLng.longitude})",
-          onPressed: (){
-            // todo : 블루투스로 목적지 좌표 전송
-          }
+        final marker = NMarker(
+          id: "destination", // Required
+          position: nLatLng, // Required
+          caption: NOverlayCaption(text: "목적지"), // Optional
+        );
+        mapController!.addOverlay(marker);
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Latitude: ${nLatLng.latitude}\nLongitude: ${nLatLng.longitude}'),
+            action: SnackBarAction(label: "목적지 전송", onPressed: () {
+              // todo : 블루투스로
+            }),
+          ),
         );
       },
     );
   }
 
-  Future<void> _showAlertDialog({
-    required BuildContext context,
-    required String title,
-    required String content,
-    VoidCallback? onPressed,
-  }) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(child: Text(content)),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('취소'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('확인'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                onPressed?.call();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
