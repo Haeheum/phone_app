@@ -12,7 +12,8 @@ class BluetoothManager {
   BluetoothManager._internal();
 
   // 목표 서비스 UUID
-  static const String targetServiceUUID = "asdf";
+  static const String targetServiceUUID =
+      "4E430000-8F37-4E38-AC31-D42E863E7216";
 
   // 블루투스 On/Off 상태
   final ValueNotifier<bool> isBleOn = ValueNotifier(false);
@@ -34,6 +35,7 @@ class BluetoothManager {
   // 초기화 (initState에서 호출)
   void initialize() {
     _bluetoothStateSubscription = FlutterBluePlus.adapterState.listen((state) {
+      log(name: "디버그", "블루투스 상태 : $state");
       isBleOn.value = state == BluetoothAdapterState.on;
     });
 
@@ -60,12 +62,8 @@ class BluetoothManager {
       await FlutterBluePlus.startScan(
         androidUsesFineLocation: true,
         timeout: const Duration(seconds: 15),
-        withNames: [
-          // todo
-        ],
-        withServices: [
-          // Guid("180f"), // todo
-        ],
+        // withNames: ["테스트localName"],
+        withServices: [Guid("00001819-8F37-4E38-AC31-D42E863E7216")],
       );
     } catch (e) {
       log(name: "블루투스", "스캔 실패: $e");
@@ -84,8 +82,6 @@ class BluetoothManager {
     try {
       await device.connect(
         timeout: const Duration(seconds: 35),
-        mtu: 70,
-        autoConnect: true,
       );
       device.connectionState.listen((connectionState) {
         isBleConnected.value =
