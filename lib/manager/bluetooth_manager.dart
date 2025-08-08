@@ -73,9 +73,7 @@ class BluetoothManager {
         timeout: const Duration(seconds: 15),
         // withNames: ["테스트localName"],
         withServices: [
-          Guid(targetServiceUUID),
-          Guid(currentCharacteristicUUID),
-          Guid(destinationCharacteristicUUID),
+          Guid(targetServiceUUID)
         ],
       );
     } catch (e) {
