@@ -51,7 +51,7 @@ class LocationManager {
       _lastKnownLocation = location;
       log(name: "위치", "(${location.latitude}, ${location.longitude})");
       if (BluetoothManager.instance.isBleConnected.value) {
-        // todo : 블루투스로 현재 좌표 전송
+        BluetoothManager.instance.sendCurrentLocation(location);
       }
     });
   }

@@ -47,7 +47,7 @@ class NaverMapWidget extends StatelessWidget {
                   action: SnackBarAction(
                     label: "목적지 전송",
                     onPressed: () {
-                      // todo : 블루투스로 목적지 좌표 전송
+                      BluetoothManager.instance.sendDestination(nLatLng);
                     },
                   ),
                 )
