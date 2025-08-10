@@ -71,7 +71,6 @@ class BluetoothManager {
       await FlutterBluePlus.startScan(
         androidUsesFineLocation: true,
         timeout: const Duration(seconds: 15),
-        // withNames: ["테스트localName"],
         withServices: [
           Guid(targetServiceUUID)
         ],

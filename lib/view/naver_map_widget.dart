@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:phone_app/manager/bluetooth_manager.dart';
+import 'package:phone_app/manager/location_manager.dart';
 
 class NaverMapWidget extends StatelessWidget {
   const NaverMapWidget({super.key});
@@ -46,7 +47,11 @@ class NaverMapWidget extends StatelessWidget {
                   ),
                   action: SnackBarAction(
                     label: "목적지 전송",
-                    onPressed: () {
+                    onPressed: () async{
+                      final lastKnownLocation = LocationManager.instance.lastKnownLocation;
+                      if(lastKnownLocation != null){
+                        BluetoothManager.instance.sendCurrentLocation(lastKnownLocation);
+                      }
                       BluetoothManager.instance.sendDestination(nLatLng);
                     },
                   ),
