@@ -25,6 +25,9 @@ class LocationManager {
   // 마지막 위치
   NLatLng? lastKnownLocation;
 
+  // 멥 컨트롤러
+  NaverMapController? mapController;
+
   // 위치 권한 요청
   Future<void> requestPermission() async {
     await _myLocationTracker.requestLocationPermission().then((

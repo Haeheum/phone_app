@@ -12,6 +12,8 @@ dependencies:
 
   flutter_blue_plus: ^1.35.5
   flutter_naver_map: ^1.4.1+1
+  google_places_autocomplete: ^0.1.0
+  http: ^1.5.0
 
 dev_dependencies:
   flutter_test:
