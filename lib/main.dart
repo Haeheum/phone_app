@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
       drawer: Drawer(
         child: ValueListenableBuilder<List<ScanResult>>(
           valueListenable: _bluetoothManager.scanResults,
-          builder: (_, results, __) {
+          builder: (_, results, _) {
             return RefreshIndicator(
               onRefresh: () => _bluetoothManager.startScan(),
               child: ListView(
@@ -88,7 +88,10 @@ class _MyAppState extends State<MyApp> {
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(20.0),
-                        child: Text('검색된 기기가 없습니다.', style: TextStyle(color: Colors.grey)),
+                        child: Text(
+                          '검색된 기기가 없습니다.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
                     ),
                   ...results.map((result) {
