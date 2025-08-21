@@ -119,6 +119,7 @@ class _NaverMapWidgetState extends State<NaverMapWidget> {
         );
         _addDestinationMarker(nLatLng!);
       }
+      if(!mounted) return;
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         BluetoothManager.instance.isBleConnected.value
@@ -146,6 +147,7 @@ class _NaverMapWidgetState extends State<NaverMapWidget> {
               ),
       );
     } else {
+      if(!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('장소 정보를 불러오는 데 실패했습니다.')));

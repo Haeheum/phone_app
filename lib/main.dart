@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> {
       },
       body: ValueListenableBuilder<bool>(
         valueListenable: _locationManager.hasLocationPermission,
-        builder: (_, hasLocationPermission, __) {
+        builder: (_, hasLocationPermission, _) {
           if (!hasLocationPermission) {
             return ShowCurrentWarning(
               message: '위치 권한 확인',
@@ -130,7 +130,7 @@ class _MyAppState extends State<MyApp> {
 
           return ValueListenableBuilder<bool>(
             valueListenable: _bluetoothManager.isBleOn,
-            builder: (_, isBleOn, __) {
+            builder: (_, isBleOn, _) {
               if (!isBleOn) {
                 return ShowCurrentWarning(
                   message: '블루투스 확인',
