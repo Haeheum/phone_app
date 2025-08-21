@@ -119,7 +119,7 @@ class _NaverMapWidgetState extends State<NaverMapWidget> {
         );
         _addDestinationMarker(nLatLng!);
       }
-      if(!mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         BluetoothManager.instance.isBleConnected.value
@@ -147,7 +147,7 @@ class _NaverMapWidgetState extends State<NaverMapWidget> {
               ),
       );
     } else {
-      if(!mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('장소 정보를 불러오는 데 실패했습니다.')));
@@ -240,8 +240,9 @@ class _NaverMapWidgetState extends State<NaverMapWidget> {
             child: NaverMap(
               options: NaverMapViewOptions(
                 contentPadding: safeAreaPadding,
-                initialCameraPosition: const NCameraPosition(
-                  target: NLatLng(0, 0),
+                initialCameraPosition: NCameraPosition(
+                  target:
+                      locationManager.lastKnownLocation ?? const NLatLng(0, 0),
                   zoom: 14,
                 ),
                 locationButtonEnable: true,
